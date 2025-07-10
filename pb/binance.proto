@@ -1,0 +1,23 @@
+syntax = "proto3";
+package binance;
+
+option go_package = "model;model";
+import "trade.proto";
+
+// Binance-specific trade payload
+message BinanceTrade {
+  string event_type = 1;       // always "trade"
+  int64  event_time = 2;       // event time in epoch ms
+  string symbol = 3;           // trading pair, e.g., "BTCUSDT"
+  int64  trade_time = 4;       // trade time in epoch ms
+  bool   is_buyer_maker = 5;
+  string trade_id = 6;
+  double price = 7;
+  double quantity = 8;
+}
+
+// Wrapper tying raw Binance payload to canonical model
+message BinanceMarketData {
+  BinanceTrade raw = 1;
+  market.MarketData canonical = 2; // populate fields from raw, symbol requires no conversion
+}

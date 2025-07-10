@@ -1,0 +1,15 @@
+syntax = "proto3";
+package market;
+
+option go_package = "model;trade";
+
+// Canonical market data model
+// symbol MUST be uppercase concatenation of base and quote assets without separators (e.g., BTCUSDT)
+message MarketData {
+  string exchange = 1;         // e.g., "BINANCE", "COINBASE", "KRAKEN"
+  string symbol = 2;           // e.g., "BTCUSDT"
+  int64  timestamp = 3;        // epoch milliseconds
+  double price = 4;            // trade price
+  double size = 5;             // trade size/quantity
+  string trade_id = 6;         // exchange-specific trade identifier
+}

@@ -1,0 +1,24 @@
+syntax = "proto3";
+package coinbase;
+
+option go_package = "model;coinbase";
+import "trade.proto";
+import "google/protobuf/timestamp.proto";
+
+// Coinbase match message -- a trade execution
+message CoinbaseMatch {
+  string event_type = 1;       // always "match"
+  string trade_id = 2;         // exchange-generated trade identifier
+  string product_id = 3;       // trading pair e.g., "BTC-USDT"
+  double size = 4;             // amount traded
+  double price = 5;            // execution price
+  google.protobuf.Timestamp time = 6;  // trade time
+  string maker_order_id = 7;
+  string taker_order_id = 8;
+}
+
+// Wrapper tying raw Coinbase payload to canonical model
+message CoinbaseMarketData {
+  CoinbaseMatch raw = 1;
+  market.MarketData canonical = 2; // canonical.symbol = uppercase(remove "-" from raw.product_id)
+}

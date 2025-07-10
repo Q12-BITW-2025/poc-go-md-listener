@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: poc-go-md-listener
+  namespace: market-data
+spec:
+  clusterIP: None       # ← headless, no ClusterIP assigned
+  selector:
+    app: poc-go-md-listener
+  # no ports section needed – purely DNS

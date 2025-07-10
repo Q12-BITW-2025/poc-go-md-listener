@@ -1,0 +1,30 @@
+// file: kraken.proto
+syntax = "proto3";
+package kraken;
+
+option go_package = "model;kraken";
+import "trade.proto";
+
+// Kraken subscription trade entry
+message KrakenTradeEntry {
+  string price = 1;            // execution price as string
+  string volume = 2;           // trade volume as string
+  double time = 3;             // epoch seconds as float
+  int32  side = 4;             // 0 = buy, 1 = sell
+  int32  order_type = 5;       // 0 = market, 1 = limit
+  string misc = 6;
+}
+
+// Kraken subscription message containing trades and pair
+message KrakenSubscription {
+  string channelName = 1;
+  int32  channelID = 2;
+  repeated KrakenTradeEntry trades = 3;
+  repeated string pair = 4;    // trading pair e.g., "BTC/USD"
+}
+
+// Wrapper tying raw Kraken payload to canonical model
+message KrakenMarketData {
+  KrakenSubscription raw = 1;
+  market.MarketData canonical = 2; // canonical.symbol = uppercase(remove "/" from raw.pair[0])
+}

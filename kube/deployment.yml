@@ -1,0 +1,122 @@
+---
+# 1) Binance listener
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poc-go-md-listener-binance
+  namespace: market-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: poc-go-md-listener-binance
+  template:
+    metadata:
+      labels:
+        app: poc-go-md-listener-binance
+      annotations:
+        odigos.io/auto-instrument: "true"
+    spec:
+      containers:
+        - name: poc-go-md-listener
+          image: 512979937293.dkr.ecr.us-east-1.amazonaws.com/poc-go-md-listener:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          env:
+            - name: EXCHANGE
+              value: "BINANCE"
+            - name: SYMBOLS
+              value: "BTCUSDT,ETHUSDT,BTCBRL"
+            #### ODIGOS SETUP ####
+            - name: OTEL_SERVICE_NAME
+              value: "poc-go-md-listener-binance"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://localhost:4317"   # The sidecar’s gRPC port
+            - name: OTEL_TRACES_SAMPLER
+              value: "always_on"
+---
+# 2) Coinbase listener
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poc-go-md-listener-coinbase
+  namespace: market-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: poc-go-md-listener-coinbase
+  template:
+    metadata:
+      labels:
+        app: poc-go-md-listener-coinbase
+    spec:
+      containers:
+        - name: poc-go-md-listener
+          image: 512979937293.dkr.ecr.us-east-1.amazonaws.com/poc-go-md-listener:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          env:
+            - name: EXCHANGE
+              value: "COINBASE"
+            - name: SYMBOLS
+              value: "BTC-USD,BTC-USDT,ETH-USD"
+            #### ODIGOS SETUP ####
+            - name: OTEL_SERVICE_NAME
+              value: "poc-go-md-listener-coinbase"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://localhost:4317"   # The sidecar’s gRPC port
+            - name: OTEL_TRACES_SAMPLER
+              value: "always_on"
+---
+# 3) Kraken listener
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poc-go-md-listener-kraken
+  namespace: market-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: poc-go-md-listener-kraken
+  template:
+    metadata:
+      labels:
+        app: poc-go-md-listener-kraken
+    spec:
+      containers:
+        - name: poc-go-md-listener
+          image: 512979937293.dkr.ecr.us-east-1.amazonaws.com/poc-go-md-listener:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          env:
+            - name: EXCHANGE
+              value: "KRAKEN"
+            - name: SYMBOLS
+              value: "XBT/USD,ETH/USD"
+            #### ODIGOS SETUP ####
+            - name: OTEL_SERVICE_NAME
+              value: "poc-go-md-listener-kraken"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://localhost:4317"   # The sidecar’s gRPC port
+            - name: OTEL_TRACES_SAMPLER
+              value: "always_on"

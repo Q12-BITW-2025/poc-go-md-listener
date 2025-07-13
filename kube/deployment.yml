@@ -14,8 +14,6 @@ spec:
     metadata:
       labels:
         app: poc-go-md-listener-binance
-      annotations:
-        odigos.io/auto-instrument: "true"
     spec:
       containers:
         - name: poc-go-md-listener
@@ -32,14 +30,7 @@ spec:
             - name: EXCHANGE
               value: "BINANCE"
             - name: SYMBOLS
-              value: "BTCUSDT,ETHUSDT,BTCBRL"
-            #### ODIGOS SETUP ####
-            - name: OTEL_SERVICE_NAME
-              value: "poc-go-md-listener-binance"
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://localhost:4317"   # The sidecar’s gRPC port
-            - name: OTEL_TRACES_SAMPLER
-              value: "always_on"
+              value: "BTCUSDC,XRPUSDT,ETHUSDT,USDTUSD,BTCUSDT,XLMUSDT,DOGEUSDT,SOLUSDT,ADAUSDT,HBARUSDT"
 ---
 # 2) Coinbase listener
 apiVersion: apps/v1
@@ -72,14 +63,7 @@ spec:
             - name: EXCHANGE
               value: "COINBASE"
             - name: SYMBOLS
-              value: "BTC-USD,BTC-USDT,ETH-USD"
-            #### ODIGOS SETUP ####
-            - name: OTEL_SERVICE_NAME
-              value: "poc-go-md-listener-coinbase"
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://localhost:4317"   # The sidecar’s gRPC port
-            - name: OTEL_TRACES_SAMPLER
-              value: "always_on"
+              value: "BTC-USD,XRP-USD,ETH-USD,XLM-USD,SOL-USD,DOGE-USD,BONK-USD,SUI-USD,ADA-USD,HBAR-USD"
 ---
 # 3) Kraken listener
 apiVersion: apps/v1
@@ -112,11 +96,4 @@ spec:
             - name: EXCHANGE
               value: "KRAKEN"
             - name: SYMBOLS
-              value: "XBT/USD,ETH/USD"
-            #### ODIGOS SETUP ####
-            - name: OTEL_SERVICE_NAME
-              value: "poc-go-md-listener-kraken"
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://localhost:4317"   # The sidecar’s gRPC port
-            - name: OTEL_TRACES_SAMPLER
-              value: "always_on"
+              value: "USDT/USD,XRP/USDT,ETH/USDT,USDC/USD,DOGE/USD,BTC/USD,SOL/USD,ADA/USD,LTC/USD,XLM/USD"

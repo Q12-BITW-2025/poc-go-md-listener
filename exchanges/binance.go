@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"log"
+	"log/slog"
 	marketpb "market-ws-listener/model"
 	"net/url"
 	"strconv"
@@ -13,19 +13,28 @@ import (
 
 // ConnectBinance subscribes to trade streams and converts to MarketData
 func ConnectBinance(symbols []string) {
-	// build param
-	streams := []string{}
+	// Build stream param
+	var streams []string
 	for _, sym := range symbols {
 		streams = append(streams, strings.ToLower(sym)+"@trade")
 	}
 	param := strings.Join(streams, "/")
-	u := url.URL{Scheme: "wss", Host: "stream.binance.us:9443", Path: "/stream", RawQuery: "streams=" + param}
+	u := url.URL{
+		Scheme:   "wss",
+		Host:     "stream.binance.us:9443",
+		Path:     "/stream",
+		RawQuery: "streams=" + param,
+	}
+
+	// Connect to WebSocket
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("Binance dial error:", err)
+		slog.Error("Failed to dial Binance WebSocket", "err", err)
+		return // Don't continue if connection fails
 	}
 	defer conn.Close()
-	log.Printf("[Binance] Connected to %s", u.String())
+
+	slog.Info("[Binance] Connected", "url", u.String())
 
 	// Handler to convert raw Binance JSON into MarketData proto
 	rawHandler := func(msg []byte) (*marketpb.MarketData, error) {
@@ -43,6 +52,7 @@ func ConnectBinance(symbols []string) {
 				IsBuyerMaker bool   `json:"m"`
 			} `json:"data"`
 		}
+
 		if err := json.Unmarshal(msg, &wrapper); err != nil {
 			return nil, fmt.Errorf("json unmarshal error: %w", err)
 		}
@@ -52,6 +62,7 @@ func ConnectBinance(symbols []string) {
 		if err != nil {
 			return nil, fmt.Errorf("parse price error: %w", err)
 		}
+
 		qty, err := strconv.ParseFloat(wrapper.Data.QuantityStr, 64)
 		if err != nil {
 			return nil, fmt.Errorf("parse quantity error: %w", err)
@@ -66,8 +77,10 @@ func ConnectBinance(symbols []string) {
 			Size:      qty,
 			TradeId:   fmt.Sprint(wrapper.Data.TradeID),
 		}
+
 		return md, nil
 	}
+
 	// Start listening loop with JSON-to-proto conversion
 	listenLoop(conn, "BINANCE", rawHandler)
 }

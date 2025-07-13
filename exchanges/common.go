@@ -3,14 +3,13 @@ package exchanges
 import (
 	"context"
 	"github.com/gorilla/websocket"
-	"go.opentelemetry.io/otel"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	marketpb "market-ws-listener/model"
@@ -40,16 +39,19 @@ func listenLoop(conn *websocket.Conn, exchange string, rawHandler func([]byte) (
 		defer close(done)
 		for {
 			// Start a new span per message
-			_, span := tracer.Start(ctx, "ws.MessageReceived",
-				trace.WithAttributes(attribute.String("exchange", exchange)),
-			)
+
+			_, span := tracer.Start(ctx, "ws.MessageReceived")
+			defer span.End()
+
+			span.SetAttributes(attribute.String("event", "messageReceived"))
+			span.SetAttributes(attribute.String("exchange", exchange))
 
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				span.RecordError(err)
 				span.SetAttributes(attribute.Bool("success", false))
 				span.End()
-				log.Println("read error:", err)
+				slog.Warn("read error:", err)
 				return
 			}
 			span.SetAttributes(attribute.Int("bytes", len(msg)))
@@ -59,7 +61,7 @@ func listenLoop(conn *websocket.Conn, exchange string, rawHandler func([]byte) (
 				span.RecordError(err)
 				span.SetAttributes(attribute.Bool("conversion.success", false))
 				span.End()
-				log.Println("conversion error:", err)
+				slog.Error("conversion error:", err)
 				continue
 			}
 			span.SetAttributes(
@@ -74,7 +76,7 @@ func listenLoop(conn *websocket.Conn, exchange string, rawHandler func([]byte) (
 				span.SetAttributes(attribute.Bool("json.success", false))
 			} else {
 				span.SetAttributes(attribute.Bool("json.success", true))
-				log.Printf("Proto JSON: %s", jsonData)
+				slog.Info("MarketData proto JSON", "exchange", exchange, "data", string(jsonData))
 			}
 
 			span.End()
@@ -87,7 +89,7 @@ func listenLoop(conn *websocket.Conn, exchange string, rawHandler func([]byte) (
 	select {
 	case <-done:
 	case <-interrupt:
-		log.Println("interrupt received, closing connection")
+		slog.Info("interrupt received, closing connection")
 		conn.WriteMessage(
 			websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),

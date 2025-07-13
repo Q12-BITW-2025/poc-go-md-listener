@@ -1,12 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # === Builder Stage ===
-FROM golang:1.23-bullseye AS builder
-
-# Enable CGO for dynamic linking
-ENV CGO_ENABLED=1 \
-    GOOS=linux \
-    GOARCH=amd64
+FROM golang:1.23 AS builder
 
 # Install system dependencies for protoc and building
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,27 +24,23 @@ RUN go mod download
 # Copy proto definitions and generation script
 COPY pb/ ./pb/
 COPY scripts/gen-proto-docker.sh ./scripts/gen-proto-docker.sh
-RUN chmod +x scripts/gen-proto-docker.sh \
+RUN chmod +x ./scripts/gen-proto-docker.sh \
     && ./scripts/gen-proto-docker.sh
 
 # Copy application code
 COPY main.go ./
 COPY exchanges/ ./exchanges/
 
-# Build the application (dynamic binary)
+# Tidy modules & build statically
 RUN go mod tidy
-RUN go build -o market-ws-listener ./
-
+RUN CGO_ENABLED=0 go build -o /app/bin/market-ws-listener .
 # === Final Stage ===
-FROM debian:bullseye-slim
+FROM gcr.io/distroless/static-debian10
 
-# Install CA certificates for TLS
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Use static distroless for static binaries
+USER 15000:15000
 
-WORKDIR /app
-# Copy the dynamically-linked binary
-COPY --from=builder /app/market-ws-listener ./
+COPY --from=builder /app/bin/market-ws-listener /market-ws-listener
 
 # Default environment variables
 ENV EXCHANGE=BINANCE \
@@ -57,4 +48,4 @@ ENV EXCHANGE=BINANCE \
     OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
     OTEL_SERVICE_NAME=market-ws-listener
 
-ENTRYPOINT ["/app/market-ws-listener"]
+ENTRYPOINT ["/market-ws-listener"]

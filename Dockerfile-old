@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+
+# === Builder Stage ===
+FROM golang:1.23-alpine AS builder
+
+# Install protoc, Bash, Git, and dev headers
+RUN apk add --no-cache protobuf protobuf-dev bash git
+
+# Install Go protobuf plugin
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
+
+WORKDIR /app/market-ws-listener
+
+# Copy go.mod and go.sum, download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy proto definitions and generation script
+COPY pb/ ./pb/
+COPY scripts/gen-proto-docker.sh ./scripts/gen-proto-docker.sh
+RUN chmod +x scripts/gen-proto-docker.sh \
+    && scripts/gen-proto-docker.sh
+
+# Copy application code
+COPY main.go ./
+COPY exchanges/ ./exchanges/
+
+# Build the application
+RUN go build -o market-ws-listener ./
+
+# === Final Stage ===
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+COPY --from=builder /app/market-ws-listener ./
+
+ENV EXCHANGE=BINANCE \
+    SYMBOLS=BTCUSDT,BTCBRL
+ENTRYPOINT ["/app/market-ws-listener"]

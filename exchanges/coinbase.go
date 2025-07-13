@@ -4,7 +4,7 @@ package exchanges
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -18,40 +18,46 @@ import (
 // ConnectCoinbase subscribes to Coinbase Exchange market trades
 // and logs them as JSON.
 func ConnectCoinbase(symbols []string) {
-	const url = "wss://ws-feed.exchange.coinbase.com"
+	const wsURL = "wss://ws-feed.exchange.coinbase.com"
 
-	// Coinbase will reject handshakes without a matching Origin:
+	// Coinbase requires a valid Origin header for the handshake
 	header := http.Header{
 		"Origin": []string{"https://exchange.coinbase.com"},
 	}
 
-	conn, _, err := websocket.DefaultDialer.Dial(url, header)
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if err != nil {
-		log.Fatal("Coinbase dial error:", err)
+		slog.Error("Coinbase dial failed", "err", err)
+		return // Don’t proceed if connection failed
 	}
 	defer conn.Close()
-	log.Printf("[Coinbase] Connected to %s", url)
+
+	slog.Info("[Coinbase] Connected", "url", wsURL)
 
 	// Subscribe to matches channel
 	sub := map[string]interface{}{
 		"type":        "subscribe",
 		"product_ids": symbols,
-		"channels":    []interface{}{map[string]interface{}{"name": "matches", "product_ids": symbols}},
+		"channels": []interface{}{
+			map[string]interface{}{"name": "matches", "product_ids": symbols},
+		},
 	}
+
 	if err := conn.WriteJSON(sub); err != nil {
-		log.Fatal("Coinbase subscribe error:", err)
+		slog.Error("Coinbase subscribe failed", "err", err)
+		return
 	}
 
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("read error:", err)
+			slog.Warn("Coinbase read error", "err", err)
 			return
 		}
 
 		// If Coinbase returns a top-level error object, log and skip.
 		if bytes.Contains(msg, []byte(`"error"`)) {
-			log.Printf("Received error from Coinbase: %s", msg)
+			slog.Warn("Received error from Coinbase", "payload", string(msg))
 			continue
 		}
 
@@ -63,7 +69,7 @@ func ConnectCoinbase(symbols []string) {
 			continue
 		}
 
-		// Now unmarshal the actual trade
+		// Parse the actual trade
 		var raw struct {
 			Type      string      `json:"type"`
 			TradeID   json.Number `json:"trade_id"`
@@ -73,19 +79,20 @@ func ConnectCoinbase(symbols []string) {
 			Time      string      `json:"time"`
 		}
 		if err := json.Unmarshal(msg, &raw); err != nil {
-			log.Println("json unmarshal error:", err)
+			slog.Warn("JSON unmarshal error", "err", err)
 			continue
 		}
 
-		// convert trade_id to string
+		// Convert trade ID to string
 		tradeIDStr := raw.TradeID.String()
 
-		// Build and log canonical MarketData
+		// Build MarketData proto
 		ts, err := time.Parse(time.RFC3339Nano, raw.Time)
 		if err != nil {
-			log.Println("time parse error:", err)
+			slog.Warn("time parse error", "err", err, "value", raw.Time)
 			continue
 		}
+
 		md := &marketpb.MarketData{
 			Exchange:  "COINBASE",
 			Symbol:    strings.ReplaceAll(raw.ProductID, "-", ""),
@@ -94,11 +101,14 @@ func ConnectCoinbase(symbols []string) {
 			Size:      raw.Size,
 			TradeId:   tradeIDStr,
 		}
+
 		jsonOut, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(md)
 		if err != nil {
-			log.Println("json marshal error:", err)
+			slog.Warn("protojson marshal error", "err", err)
 			continue
 		}
-		log.Printf("Proto JSON: %s", jsonOut)
+
+		// Log the final proto JSON
+		slog.Info("Proto JSON", "data", string(jsonOut))
 	}
 }
